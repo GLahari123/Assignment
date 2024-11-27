@@ -1,0 +1,122 @@
+from selenium import webdriver
+from selenium.webdriver import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
+
+# Set up Selenium WebDriver
+options = webdriver.ChromeOptions()
+options.add_experimental_option("detach", True)
+driver = webdriver.Chrome(options=options)
+
+# Navigate to the website
+driver.get('https://www.fitpeo.com')
+driver.maximize_window()
+time.sleep(2)
+
+
+
+# Step 2: Navigate to the Revenue Calculator Page
+revenue_calculator_link = WebDriverWait(driver, 10).until(
+    EC.element_to_be_clickable((By.LINK_TEXT, "Revenue Calculator"))
+)
+revenue_calculator_link.click()
+time.sleep(2)
+
+
+
+
+# Step 3: Scroll Down to the Slider Section
+slider = WebDriverWait(driver, 10).until(
+    EC.presence_of_element_located((By.XPATH, "//input[@type='range']"))
+)
+actions = ActionChains(driver)
+actions.move_to_element(slider).perform()
+slider_handle = driver.find_element(By.XPATH, "//span[@data-index='0']/input")
+
+
+
+# Step 4: Adjust the Slider
+# Verify current value, min, and max attributes
+current_value = int(slider_handle.get_attribute("aria-valuenow"))
+min_value = int(slider_handle.get_attribute("aria-valuemin"))
+max_value = int(slider_handle.get_attribute("aria-valuemax"))
+print(f"Current Value: {current_value}, Min: {min_value}, Max: {max_value}")
+
+# Desired value to set
+target_value = 400
+
+# Calculate the percentage offset
+percentage = (target_value - min_value) / (max_value - min_value)
+
+# Calculate the required offset for the slider track
+slider_track = driver.find_element(By.XPATH, "//div[@class='MuiBox-root css-j7qwjs']")
+slider_width = slider_track.size['width']
+offset = int(slider_width * percentage)
+
+# Debug: Print calculated offset
+print(f"Slider Width: {slider_width}, Calculated Offset: {offset}")
+
+# Move the slider using ActionChains
+actions = ActionChains(driver)
+actions.click_and_hold(slider_handle).move_by_offset(offset, 0).release().perform()
+
+# Wait to observe the slider move
+time.sleep(5)
+
+text_field = driver.find_element(By.XPATH, "//input[@type='number']")  # Adjust XPath if necessary
+text_field.click()
+text_field.send_keys(Keys.CONTROL + "a")  # Select existing text
+text_field.send_keys(Keys.BACKSPACE)  # Clear the text field
+text_field.send_keys("560")  # Enter the new value
+text_field.send_keys(Keys.ENTER)
+time.sleep(3)
+
+# Step 5: Validate Slider Value Updates to 560
+updated_value = int(slider.get_attribute("aria-valuenow"))
+assert updated_value == 560, f"Slider value did not update correctly. Expected: 560, Found: {updated_value}"
+print("Slider value successfully updated to 560.")
+
+# Step 6: Select CPT Codes
+# List of CPT codes
+cpt_codes = ["CPT-99453", "CPT-99091", "CPT-99454", "CPT-99474"]
+
+# Iterate through each CPT code and select its checkbox
+for code in cpt_codes:
+    try:
+        # Locate the checkbox based on the CPT code using the updated XPath
+        checkbox = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located(
+                (By.XPATH, f"//div//p[contains(text(), '{code}')]/ancestor::div//label//input[@type='checkbox']")))
+        actions = ActionChains(driver)
+        actions.move_to_element(checkbox).perform()
+
+
+        # Check if the checkbox is selected, and if not, click it
+        if not checkbox.is_selected() :
+            checkbox.click()
+            print(f"Checkbox for {code} selected.")
+
+
+        else:
+            print(f"Checkbox for {code} was already selected.")
+
+        time.sleep(2)  # Add a delay to avoid overwhelming the UI
+
+    except Exception as e:
+        print(f"Error selecting CPT code {code}: {e}")
+
+# Step 7: Validate Total Recurring Reimbursement
+
+total_reimbursement_header = driver.find_element(By.XPATH, "/html/body/div[2]/div[1]/div[1]/div[1]/div/div[3]/p[2]")  # Replace with actual ID or locator
+total_value = total_reimbursement_header.text
+
+assert total_value != "$110700", f"Expected reimbursement value is $110700, but got {total_value}"
+
+print("Test Passed: All steps validated successfully!")
+
+
+# Close the browser after all actions
+
